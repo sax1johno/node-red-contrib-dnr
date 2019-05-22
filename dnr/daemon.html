@@ -1,0 +1,187 @@
+<!--
+  Copyright 2014 Sense Tecnic Systems, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<script type="text/x-red" data-template-name="dnr-daemon">
+    <p>DNR Daemon</p>
+    <p>There should be only one instance of this node throughout your local Node RED</p>
+    <p>It should be automatically generated via DNR Operator</p>
+    <div class="form-row">
+      <label for="node-input-operatorUrl"><i class="fa"></i> DNR operator</label>
+      <input type="text" id="node-input-operatorUrl" placeholder="http://<dnr-operator-url>">
+    </div>
+    <div class="form-row">
+      <label for="node-input-nodered"><i class="fa"></i> Local Node RED</label>
+      <input type="text" id="node-input-nodered">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="dnr-daemon">
+    <p>This node communicates with DNR Operator, 
+        it allows this local Node-RED to be part of a Node-RED cluster that is 
+        managed by the DNR Operator.</p>
+    <b>Be advised: only one instance of this node should be present in all of the flows</b>
+</script>
+<script type="text/x-red" data-help-name="nodered-credentials">
+    <p>node red credentials</p>
+</script>
+
+<script type="text/x-red" data-template-name="nodered-credentials">
+  <div class="form-row">
+    <label for="node-config-input-username"><i class="fa"></i>Username</label>
+    <input type="text" id="node-config-input-username">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-password"><i class="fa"></i>Password</label>
+    <input type="password" id="node-config-input-password">
+  </div>
+  <div class="form-row">
+    <label for="node-config-input-deviceName"><i class="fa"></i>Device Name</label>
+    <input type="text" id="node-config-input-deviceName">
+  </div>
+  <div class="form-row">
+    <label>Location fixed?</label>
+    <input type="checkbox" id="node-config-input-fixed" style="display: inline-block; width: auto; vertical-align: top;">
+  </div>
+  <div class="form-row">
+    <div id="deviceMap" style="min-height: 250px;"></div>
+  </div>
+</script>
+
+<script type="text/javascript">
+  var map, marker
+  var mapApi = false
+  var VANCOUVER = {lat: 49.269801, lng: -123.109489}
+  var ZOOM = 8
+  var GOOGLE_MAP = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAbExJS6K6Dr6JeN79ZwP9V7fnk7o6Szqs"
+
+  RED.nodes.registerType('nodered-credentials',{
+    category: 'config',
+    defaults: {
+      deviceName: {type: "text", required:false},
+      location: {required: false},
+      fixed: {required: false}
+    },
+    credentials: {
+      username: {type: "text", required:false},
+      password: {type: "text", required:false}
+    },
+    label: function() {
+      return "local NodeRED";
+    },
+    oneditsave: function(){
+      this.fixed = this.location ? true : false
+      $("#node-config-input-fixed").prop('checked', this.fixed)
+    },
+    oneditprepare: function(){
+      var thisNode = this
+
+      $("#deviceMap").hide()
+      $("#node-config-input-fixed").change(function() {
+        this.checked ? $("#deviceMap").show() : $("#deviceMap").hide()
+        if (mapApi && map && this.checked){
+          google.maps.event.trigger(map, 'resize')
+        }
+        if (!this.checked){
+          thisNode.location = null
+        }
+      })
+
+      function showMap(){
+        map = new google.maps.Map(document.getElementById('deviceMap'), {
+            center: VANCOUVER, 
+            zoom: ZOOM
+          })
+
+        if (marker){
+          marker.setMap(null)
+        }
+
+        if (thisNode.location){
+          marker = new google.maps.Marker({
+            position: thisNode.location,
+            map: map
+          })
+        }
+
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(function (position) {
+            var initialLocation = new google.maps.LatLng(position.coords.latitude, position.coords.longitude)
+            map.setCenter(initialLocation)
+          })
+        }
+
+        google.maps.event.addListener(map, 'click', function(event) {
+          if (marker){
+            marker.setMap(null)
+          }
+          marker = new google.maps.Marker({
+            position: event.latLng,
+            map: map
+          })
+          thisNode.location = {lat: event.latLng.lat(), lng: event.latLng.lng()}
+        })
+      }
+
+      if (mapApi){
+        showMap()
+        return
+      }
+
+      $.getScript( GOOGLE_MAP )
+      .done(function( script, textStatus ) {
+        mapApi = true
+        showMap()
+      })
+      .fail(function( jqxhr, settings, exception ) {
+        console.log("cannot fetch Google Map API "+ exception)
+      })
+    }
+  })
+  
+  RED.nodes.registerType('operator-credentials',{
+    category: 'config',
+    credentials: {
+      token: {type: "text", required:false}
+    },
+    label: function() {
+      return this.url;
+    },
+  });
+  RED.nodes.registerType('dnr-daemon',{
+      category: 'Distributed NR',
+      defaults: {
+        nodered: {type:"nodered-credentials",required:true},
+        operatorUrl: {type:"text",required:true},
+        operatorToken: {type:"operator-credentials", required:false}
+      },
+      color:"#e5b3c2",
+      inputs:0,
+      outputs:0,
+      label: function() {
+          return "Dnr Daemon";
+      },
+      labelStyle: function() {
+          return "node_label_italic";
+      }
+  });
+
+  RED.comms.subscribe("notification/dnr-deployed",function(topic,msg) {
+    location.reload()
+  })
+
+</script>
+
+

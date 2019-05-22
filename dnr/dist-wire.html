@@ -15,32 +15,35 @@
 -->
 
 <script type="text/x-red" data-template-name="dnr">
-    <p>This node is a wire node to a node hosted on another device.  It should never appear in the UI, but if it does let me know!</p>
+    <p><b>Do not use manually!!!</b></p>
 </script>
 
 <script type="text/x-red" data-help-name="dnr">
-    <p>This node is a wire node to a node hosted on another device.  It should never appear in the UI, but if it does let me know!</p>
+    <p>This node coordinates communication among nodes that are distributed over participating devices in a Distributed Node RED (DNRr) flow</p>
+    <p>It is automatically generated and injected into wires of a DNR flow whenever new DNR flow is available from DNR Operator. It will not be able to run directly !!!</p>
 </script>
 
 <style type="text/css">
-  .node_label_trojan {}
+  .node_label_anchor {}
 </style>
 
 <script type="text/javascript">
+  var color = "#e5b3c2"
   RED.nodes.registerType('dnr',{
-      category: 'hidden',
+      category: 'Distributed NR',
       defaults: {
         input: {value: ''},
+        linkType: {value: ''},
         gateway: {type:"dnr-gateway",required:true},
       },
-      color:"#d8bfd8",
+      color:color,
       inputs:1,
       outputs:1,
       label: function() {
           return "";
       },
       labelStyle: function() {
-          return "node_label_trojan";
+          return "node_label_anchor";
       }
   });
 
@@ -48,11 +51,26 @@
     category: 'config',
     defaults: {
         config: {value:{}}
-    },
+    }
   });
+
+  RED.nodes.registerType('dnr-placeholder',{
+    category: 'Distributed NR',
+    defaults: {
+        replaceFor: {value:''}
+    },
+    color:color,
+    label: function() {
+      return ':::'+this.replaceFor+':::';
+    },
+    inputs:1
+  });
+
+  $('#palette_node_dnr').hide()
+  $('#palette_node_dnr-placeholder').hide()
   
   var changeWidth = function(){
-    var dnrLabel = $('.node_label_trojan')
+    var dnrLabel = $('.node_label_anchor')
     dnrLabel.each(function(){
       var g = $(this).parent() 
       var rect = d3.select(g.children()[1])
